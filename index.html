@@ -702,7 +702,7 @@ function scheduleRefresh(){
 // ---------- Init ----------
 async function init(){
   const persisted = await loadPersistedLoc();
-  if(persisted){
+  if(persisted && persisted.source === 'manual'){
     state.loc = persisted;
     state.date = todayCivilInTz(state.loc.tz);
     render();
