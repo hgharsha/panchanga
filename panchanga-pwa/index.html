@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Panchanga</title>
+
+<!-- PWA / installability -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#12122a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Panchanga">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+:root{
+  --bg-deep:#12122a;
+  --bg-card:#1b1a38;
+  --bg-card-raised:#232047;
+  --accent:#e3a857;
+  --accent-glow:#f4c77b;
+  --text-primary:#f5efe0;
+  --text-muted:#8f8ab0;
+  --divider:#2e2b54;
+  --success:#7fb88a;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  background:radial-gradient(ellipse at top, #1a1940 0%, var(--bg-deep) 55%);
+  color:var(--text-primary);
+  font-family:'Manrope',sans-serif;
+  min-height:100vh;
+  padding-bottom:40px;
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+}
+
+.wrap{max-width:480px; margin:0 auto; padding:0 16px;}
+
+/* Top bar */
+.topbar{
+  position:sticky; top:0; z-index:20;
+  background:rgba(18,18,42,0.92);
+  backdrop-filter:blur(10px);
+  padding:14px 16px 10px;
+  border-bottom:1px solid var(--divider);
+}
+.locrow{
+  display:flex; align-items:center; gap:8px;
+  font-size:13px; color:var(--text-muted);
+}
+.locrow button.locbtn{
+  background:none; border:none; color:var(--accent-glow);
+  font-family:'Manrope',sans-serif; font-weight:600; font-size:14px;
+  display:flex; align-items:center; gap:6px; cursor:pointer; padding:4px 2px;
+}
+.locrow svg{width:14px;height:14px;flex-shrink:0;}
+.datebar{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-top:8px;
+}
+.datebar .navbtn{
+  width:36px; height:36px; border-radius:50%;
+  background:var(--bg-card-raised); border:1px solid var(--divider);
+  color:var(--text-primary); font-size:18px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+}
+.datebar .navbtn:active{background:var(--divider);}
+.datelabel{
+  font-family:'Cormorant Garamond',serif; font-weight:600; font-size:22px;
+  text-align:center; flex:1; cursor:pointer;
+}
+.datelabel .wk{display:block; font-family:'Manrope',sans-serif; font-weight:600; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent-glow); margin-bottom:2px;}
+
+/* Hidden native date input, invoked via label click */
+#dateInput{position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;}
+
+/* Hero ring */
+.hero{
+  display:flex; flex-direction:column; align-items:center;
+  padding:28px 0 8px;
+}
+.ringwrap{position:relative; width:210px; height:210px;}
+.ringwrap svg{transform:rotate(-90deg);}
+.ring-bg{fill:none; stroke:var(--divider); stroke-width:10;}
+.ring-fg{fill:none; stroke:url(#ringGrad); stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset 0.6s ease;}
+.ring-center{
+  position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:0 20px;
+}
+.ring-center .paksha{font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;}
+.ring-center .tithi{font-family:'Cormorant Garamond',serif; font-weight:700; font-size:30px; line-height:1.05;}
+.ring-center .until{font-family:'Space Mono',monospace; font-size:12px; color:var(--accent-glow); margin-top:6px;}
+
+/* Section cards */
+.section{margin-top:22px;}
+.section-title{
+  font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-muted);
+  margin:0 0 8px 4px; font-weight:700;
+}
+.card{
+  background:var(--bg-card);
+  border:1px solid var(--divider);
+  border-radius:16px;
+  overflow:hidden;
+}
+.row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:13px 16px;
+  border-bottom:1px solid var(--divider);
+}
+.row:last-child{border-bottom:none;}
+.row .label{font-size:14.5px; color:var(--text-muted); font-weight:500;}
+.row .value{font-size:14.5px; font-weight:700; text-align:right;}
+.row .value .end{
+  display:block; font-family:'Space Mono',monospace; font-weight:400; font-size:11.5px; color:var(--accent-glow); margin-top:2px;
+}
+.sun-row{
+  display:flex; gap:0;
+}
+.sun-cell{
+  flex:1; padding:16px; text-align:center;
+}
+.sun-cell + .sun-cell{border-left:1px solid var(--divider);}
+.sun-cell .icon{font-size:20px; margin-bottom:4px;}
+.sun-cell .time{font-family:'Space Mono',monospace; font-weight:700; font-size:19px;}
+.sun-cell .lbl{font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.1em; margin-top:2px;}
+
+.footer{
+  text-align:center; padding:26px 20px 10px; font-size:11.5px; color:var(--text-muted); line-height:1.6;
+}
+.footer button{
+  background:none; border:1px solid var(--divider); color:var(--text-muted);
+  border-radius:20px; padding:7px 14px; font-size:12px; font-family:'Manrope',sans-serif;
+  margin-top:10px; cursor:pointer;
+}
+
+.loading{
+  display:flex; align-items:center; justify-content:center; min-height:60vh; color:var(--text-muted); font-size:14px;
+}
+
+/* City picker sheet */
+.sheet-backdrop{
+  position:fixed; inset:0; background:rgba(10,10,24,0.7); z-index:50;
+  display:none; align-items:flex-end; justify-content:center;
+}
+.sheet-backdrop.open{display:flex;}
+.sheet{
+  background:var(--bg-card-raised); width:100%; max-width:480px;
+  border-radius:20px 20px 0 0; padding:18px 18px 26px; max-height:75vh; overflow-y:auto;
+  border-top:1px solid var(--divider);
+}
+.sheet h3{font-family:'Cormorant Garamond',serif; font-size:20px; margin:0 0 12px;}
+.sheet input[type=text]{
+  width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--divider);
+  background:var(--bg-deep); color:var(--text-primary); font-size:15px; margin-bottom:10px; font-family:'Manrope',sans-serif;
+}
+.citylist{max-height:260px; overflow-y:auto; margin-bottom:6px;}
+.cityopt{
+  padding:11px 8px; border-bottom:1px solid var(--divider); cursor:pointer; font-size:14.5px;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.cityopt:active{background:var(--divider);}
+.cityopt .sub{color:var(--text-muted); font-size:12px;}
+.sheet .manualbtn{
+  width:100%; text-align:left; padding:11px 8px; color:var(--accent-glow); font-size:14px; cursor:pointer; font-weight:600;
+}
+.manualfields{display:none; gap:8px;}
+.manualfields.open{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;}
+.manualfields input{flex:1; min-width:100px; padding:10px; border-radius:10px; border:1px solid var(--divider); background:var(--bg-deep); color:var(--text-primary); font-family:'Space Mono',monospace; font-size:13px;}
+.sheet .savebtn{
+  width:100%; background:var(--accent); color:#1a1740; border:none; border-radius:12px;
+  padding:13px; font-weight:700; font-size:15px; margin-top:12px; cursor:pointer; font-family:'Manrope',sans-serif;
+}
+.sheet .closebtn{
+  width:100%; background:none; border:none; color:var(--text-muted); padding:10px; font-size:13px; cursor:pointer;
+}
+.badge{
+  display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:20px; margin-left:6px;
+  background:rgba(227,168,87,0.15); color:var(--accent-glow); font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="loading">Reading the sky…</div>
+</div>
+
+<div class="sheet-backdrop" id="sheetBackdrop">
+  <div class="sheet">
+    <h3>Set location</h3>
+    <input type="text" id="citySearch" placeholder="Search a city…">
+    <div class="citylist" id="cityList"></div>
+    <div class="manualbtn" id="manualToggle">Enter coordinates manually</div>
+    <div class="manualfields" id="manualFields">
+      <input type="text" id="manLat" placeholder="Latitude">
+      <input type="text" id="manLon" placeholder="Longitude">
+      <input type="text" id="manTz" placeholder="IANA timezone e.g. America/Chicago">
+      <input type="text" id="manName" placeholder="Label">
+    </div>
+    <button class="savebtn" id="manualSave" style="display:none;">Use these coordinates</button>
+    <button class="closebtn" id="sheetClose">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ---------- Storage polyfill (localStorage-backed, works on any host) ----------
+window.storage = {
+  async get(key){
+    try{ const v = localStorage.getItem(key); return v===null ? null : {key, value:v}; }
+    catch(e){ return null; }
+  },
+  async set(key, value){
+    try{ localStorage.setItem(key, value); return {key, value}; }
+    catch(e){ return null; }
+  },
+  async delete(key){
+    try{ localStorage.removeItem(key); return {key, deleted:true}; }
+    catch(e){ return null; }
+  },
+  async list(prefix){
+    try{
+      const keys=[];
+      for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!prefix||k.startsWith(prefix)) keys.push(k); }
+      return {keys, prefix};
+    }catch(e){ return null; }
+  }
+};
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+
+(function(){
+
+// ---------- Astronomical core ----------
+function norm360(x){ x = x % 360; if(x<0) x+=360; return x; }
+function d2r(d){ return d*Math.PI/180; }
+function julianDay(utcMs){ return utcMs/86400000 + 2440587.5; }
+
+function sunTrueLongitude(T){
+  const L0 = norm360(280.46646 + 36000.76983*T + 0.0003032*T*T);
+  const M  = norm360(357.52911 + 35999.05029*T - 0.0001537*T*T);
+  const Mr = d2r(M);
+  const C = (1.914602 - 0.004817*T - 0.000014*T*T)*Math.sin(Mr)
+          + (0.019993 - 0.000101*T)*Math.sin(2*Mr)
+          + 0.000289*Math.sin(3*Mr);
+  let trueLong = L0 + C;
+  const omega = 125.04 - 1934.136*T;
+  return norm360(trueLong - 0.00569 - 0.00478*Math.sin(d2r(omega)));
+}
+
+function moonTrueLongitude(T){
+  const Lp = norm360(218.3164477 + 481267.88123421*T - 0.0015786*T*T + T*T*T/538841 - T*T*T*T/65194000);
+  const D  = norm360(297.8501921 + 445267.1114034*T - 0.0018819*T*T + T*T*T/545868 - T*T*T*T/113065000);
+  const M  = norm360(357.5291092 + 35999.0502909*T - 0.0001536*T*T + T*T*T/24490000);
+  const Mp = norm360(134.9633964 + 477198.8675055*T + 0.0087414*T*T + T*T*T/69699 - T*T*T*T/14712000);
+  const F  = norm360(93.2720950 + 483202.0175233*T - 0.0036539*T*T - T*T*T/3526000 + T*T*T*T/863310000);
+  const Dr=d2r(D), Mr=d2r(M), Mpr=d2r(Mp), Fr=d2r(F);
+  const dL = 6.288774*Math.sin(Mpr)+1.274027*Math.sin(2*Dr-Mpr)+0.658314*Math.sin(2*Dr)
+    +0.213618*Math.sin(2*Mpr)-0.185116*Math.sin(Mr)-0.114332*Math.sin(2*Fr)
+    +0.058793*Math.sin(2*Dr-2*Mpr)+0.057066*Math.sin(2*Dr-Mr-Mpr)+0.053322*Math.sin(2*Dr+Mpr)
+    +0.045758*Math.sin(2*Dr-Mr)-0.040923*Math.sin(Mr-Mpr)-0.034720*Math.sin(Dr)
+    -0.030383*Math.sin(Mr+Mpr)+0.015327*Math.sin(2*Dr-2*Fr)-0.012528*Math.sin(Mpr+2*Fr)
+    +0.010980*Math.sin(Mpr-2*Fr)+0.010675*Math.sin(4*Dr-Mpr)+0.010034*Math.sin(3*Mpr)
+    +0.008548*Math.sin(4*Dr-2*Mpr)-0.007888*Math.sin(2*Dr+Mr-Mpr)-0.006766*Math.sin(2*Dr+Mr);
+  return norm360(Lp+dL);
+}
+
+function ayanamsaLahiri(jd){
+  const yrs = (jd-2451545.0)/365.25;
+  return 23.8561 + 0.0139952*yrs;
+}
+
+function sunLongAt(ms){ return sunTrueLongitude((julianDay(ms)-2451545.0)/36525); }
+function moonLongAt(ms){ return moonTrueLongitude((julianDay(ms)-2451545.0)/36525); }
+function ayanAt(ms){ return ayanamsaLahiri(julianDay(ms)); }
+
+function tithiDiffAt(ms){ return norm360(moonLongAt(ms)-sunLongAt(ms)); }
+function moonSidAt(ms){ return norm360(moonLongAt(ms)-ayanAt(ms)); }
+function sunSidAt(ms){ return norm360(sunLongAt(ms)-ayanAt(ms)); }
+function yogaSumAt(ms){ return norm360(moonSidAt(ms)+sunSidAt(ms)); }
+
+// Generic forward crossing finder: next time valueFn crosses a multiple of `period`
+function findNextCrossing(startMs, valueFn, period, maxDays){
+  maxDays = maxDays || 3;
+  const base = valueFn(startMs);
+  const targetMod = norm360((Math.floor(base/period)+1)*period);
+  function shifted(ms){
+    let v = valueFn(ms) - targetMod;
+    v = ((v % 360)+540)%360 - 180;
+    return v;
+  }
+  const stepMs = 20*60*1000;
+  let lo = startMs, vLo = shifted(lo);
+  let hi = lo;
+  const limit = startMs + maxDays*86400000;
+  while(hi < limit){
+    hi += stepMs;
+    const vHi = shifted(hi);
+    if(vLo <= 0 && vHi > 0){
+      let a=lo, b=hi;
+      for(let i=0;i<40;i++){
+        const mid=(a+b)/2;
+        if(shifted(mid) <= 0){ a=mid; } else { b=mid; }
+      }
+      return (a+b)/2;
+    }
+    lo = hi; vLo = vHi;
+  }
+  return null;
+}
+
+// Find the next new moon (tithi diff crossing a multiple of 360) at or after startMs.
+// The Chandramana masa is named after the sidereal rashi the Sun occupies at the END
+// of the lunar month (the following new moon) — this correctly captures the solar
+// sankranti that falls inside the month, rather than the rashi at the month's start.
+function findNextNewMoon(startMs){
+  return findNextCrossing(startMs, tithiDiffAt, 360, 40);
+}
+
+// ---------- Names ----------
+const NAKSHATRAS = ["Ashwini","Bharani","Krittika","Rohini","Mrigashira","Ardra","Punarvasu","Pushya","Ashlesha","Magha","Purva Phalguni","Uttara Phalguni","Hasta","Chitra","Swati","Vishakha","Anuradha","Jyeshtha","Mula","Purva Ashadha","Uttara Ashadha","Shravana","Dhanishta","Shatabhisha","Purva Bhadrapada","Uttara Bhadrapada","Revati"];
+const YOGAS = ["Vishkambha","Priti","Ayushman","Saubhagya","Shobhana","Atiganda","Sukarma","Dhriti","Shula","Ganda","Vriddhi","Dhruva","Vyaghata","Harshana","Vajra","Siddhi","Vyatipata","Variyana","Parigha","Shiva","Siddha","Sadhya","Shubha","Shukla","Brahma","Indra","Vaidhriti"];
+const TITHI_NAMES = ["Prathama","Dwitiya","Tritiya","Chaturthi","Panchami","Shashthi","Saptami","Ashtami","Navami","Dashami","Ekadashi","Dwadashi","Trayodashi","Chaturdashi"];
+const VARA_NAMES = ["Bhanu vara","Indu vara","Bhauma vara","Saumya vara","Guru vara","Bhrigu vara","Sthira vara"]; // Sun..Sat
+const MASA_NAMES = ["Chaitra","Vaishakha","Jyeshtha","Ashadha","Shravana","Bhadrapada","Ashwin","Kartika","Margashira","Pausha","Magha","Phalguna"];
+const RITU_NAMES = ["Vasanta","Greeshma","Varsha","Sharad","Hemanta","Shishira"];
+const SAMVATSARA = ["Prabhava","Vibhava","Shukla","Pramoda","Prajapati","Angirasa","Shrimukha","Bhava","Yuva","Dhatu","Ishvara","Bahudhanya","Pramathi","Vikrama","Vrisha","Chitrabhanu","Subhanu","Tarana","Parthiva","Vyaya","Sarvajit","Sarvadhari","Virodhi","Vikriti","Khara","Nandana","Vijaya","Jaya","Manmatha","Durmukhi","Hemalamba","Vilamba","Vikari","Sharvari","Plava","Shubhakrit","Shobhakrit","Krodhi","Vishvavasu","Parabhava","Plavanga","Kilaka","Saumya","Sadharana","Virodhikrit","Paridhavi","Pramadicha","Ananda","Rakshasa","Nala","Pingala","Kalayukti","Siddharthi","Raudri","Durmati","Dundubhi","Rudhirodgari","Raktakshi","Krodhana","Kshaya"];
+const KARANA_CYCLE = ["Bava","Balava","Kaulava","Taitila","Gara","Vanija","Vishti"];
+
+function karanaName(idx){
+  if(idx===0) return "Kimstughna";
+  if(idx>=57) return ["Shakuni","Chatushpada","Naga"][idx-57];
+  return KARANA_CYCLE[(idx-1)%7];
+}
+function tithiInfo(diff){
+  const num = Math.floor(diff/12)+1; // 1..30
+  const paksha = num<=15 ? "Shukla Paksha" : "Krishna Paksha";
+  const local = num<=15 ? num : num-15;
+  const name = local===15 ? (num<=15 ? "Purnima" : "Amavasya") : TITHI_NAMES[local-1];
+  return {num, paksha, name};
+}
+
+// ---------- Sunrise / Sunset (NOAA algorithm) ----------
+function dayOfYear(y,m,d){
+  const start = Date.UTC(y,0,1);
+  const cur = Date.UTC(y,m-1,d);
+  return Math.round((cur-start)/86400000)+1;
+}
+function sunTimesUTCMinutes(y,m,d,lat,lon){
+  const N = dayOfYear(y,m,d);
+  const gamma = 2*Math.PI/365*(N-1+ (12-12)/24);
+  const eqtime = 229.18*(0.000075+0.001868*Math.cos(gamma)-0.032077*Math.sin(gamma)-0.014615*Math.cos(2*gamma)-0.040849*Math.sin(2*gamma));
+  const decl = 0.006918-0.399912*Math.cos(gamma)+0.070257*Math.sin(gamma)-0.006758*Math.cos(2*gamma)+0.000907*Math.sin(2*gamma)-0.002697*Math.cos(3*gamma)+0.00148*Math.sin(3*gamma);
+  const zenith = d2r(90.833);
+  const latR = d2r(lat);
+  let cosHA = (Math.cos(zenith)/(Math.cos(latR)*Math.cos(decl))) - Math.tan(latR)*Math.tan(decl);
+  cosHA = Math.max(-1,Math.min(1,cosHA));
+  const ha = Math.acos(cosHA)*180/Math.PI;
+  const solarNoon = 720 - 4*lon - eqtime;
+  return { sunrise: solarNoon - ha*4, sunset: solarNoon + ha*4 };
+}
+function minutesToUTCms(y,m,d,minutes){
+  return Date.UTC(y,m-1,d,0,0,0,0) + Math.round(minutes*60000);
+}
+
+// ---------- Cities (no network geocoding available; curated list + manual entry) ----------
+const CITIES = [
+ {name:"Naperville, IL, USA", lat:41.7508, lon:-88.1535, tz:"America/Chicago"},
+ {name:"Chicago, IL, USA", lat:41.8781, lon:-87.6298, tz:"America/Chicago"},
+ {name:"New York, NY, USA", lat:40.7128, lon:-74.0060, tz:"America/New_York"},
+ {name:"Los Angeles, CA, USA", lat:34.0522, lon:-118.2437, tz:"America/Los_Angeles"},
+ {name:"San Francisco, CA, USA", lat:37.7749, lon:-122.4194, tz:"America/Los_Angeles"},
+ {name:"Seattle, WA, USA", lat:47.6062, lon:-122.3321, tz:"America/Los_Angeles"},
+ {name:"Houston, TX, USA", lat:29.7604, lon:-95.3698, tz:"America/Chicago"},
+ {name:"Dallas, TX, USA", lat:32.7767, lon:-96.7970, tz:"America/Chicago"},
+ {name:"Atlanta, GA, USA", lat:33.7490, lon:-84.3880, tz:"America/New_York"},
+ {name:"Boston, MA, USA", lat:42.3601, lon:-71.0589, tz:"America/New_York"},
+ {name:"Washington, DC, USA", lat:38.9072, lon:-77.0369, tz:"America/New_York"},
+ {name:"Denver, CO, USA", lat:39.7392, lon:-104.9903, tz:"America/Denver"},
+ {name:"Phoenix, AZ, USA", lat:33.4484, lon:-112.0740, tz:"America/Phoenix"},
+ {name:"Mettawa, IL, USA", lat:42.2333, lon:-87.9273, tz:"America/Chicago"},
+ {name:"Toronto, Canada", lat:43.6532, lon:-79.3832, tz:"America/Toronto"},
+ {name:"London, UK", lat:51.5074, lon:-0.1278, tz:"Europe/London"},
+ {name:"Mumbai, India", lat:19.0760, lon:72.8777, tz:"Asia/Kolkata"},
+ {name:"Delhi, India", lat:28.6139, lon:77.2090, tz:"Asia/Kolkata"},
+ {name:"Bengaluru, India", lat:12.9716, lon:77.5946, tz:"Asia/Kolkata"},
+ {name:"Hyderabad, India", lat:17.3850, lon:78.4867, tz:"Asia/Kolkata"},
+ {name:"Chennai, India", lat:13.0827, lon:80.2707, tz:"Asia/Kolkata"},
+ {name:"Vijayawada, India", lat:16.5062, lon:80.6480, tz:"Asia/Kolkata"},
+ {name:"Tirupati, India", lat:13.6288, lon:79.4192, tz:"Asia/Kolkata"},
+ {name:"Pune, India", lat:18.5204, lon:73.8567, tz:"Asia/Kolkata"},
+ {name:"Kolkata, India", lat:22.5726, lon:88.3639, tz:"Asia/Kolkata"},
+ {name:"Dubai, UAE", lat:25.2048, lon:55.2708, tz:"Asia/Dubai"},
+ {name:"Singapore", lat:1.3521, lon:103.8198, tz:"Asia/Singapore"},
+ {name:"Sydney, Australia", lat:-33.8688, lon:151.2093, tz:"Australia/Sydney"},
+];
+const DEFAULT_CITY = CITIES[0]; // Naperville, IL
+
+// ---------- State ----------
+let state = {
+  loc: null, // {name, lat, lon, tz, source}
+  date: null // {y,m,d} civil date being viewed
+};
+
+function todayCivilInTz(tz){
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
+  const o={}; parts.forEach(p=>o[p.type]=p.value);
+  return {y:+o.year, m:+o.month, d:+o.day};
+}
+
+function fmtLocalTime(ms, tz){
+  return new Intl.DateTimeFormat('en-US',{timeZone:tz,hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(ms));
+}
+function fmtLocalDate(y,m,d){
+  const dt = new Date(Date.UTC(y,m-1,d,12,0,0));
+  return new Intl.DateTimeFormat('en-US',{timeZone:'UTC',month:'long',day:'numeric',year:'numeric'}).format(dt);
+}
+function weekdayName(y,m,d){
+  const dt = new Date(Date.UTC(y,m-1,d,12,0,0));
+  return new Intl.DateTimeFormat('en-US',{timeZone:'UTC',weekday:'long'}).format(dt);
+}
+function weekdayIndex(y,m,d){
+  return new Date(Date.UTC(y,m-1,d,12,0,0)).getUTCDay(); // 0=Sun
+}
+
+// ---------- Core panchanga computation for a civil date+location ----------
+function computePanchanga(y,m,d,lat,lon,tz){
+  const sun = sunTimesUTCMinutes(y,m,d,lat,lon);
+  const sunriseMs = minutesToUTCms(y,m,d,sun.sunrise);
+  const sunsetMs = minutesToUTCms(y,m,d,sun.sunset);
+
+  const diffAtSunrise = tithiDiffAt(sunriseMs);
+  const tInfo = tithiInfo(diffAtSunrise);
+  const tithiEndMs = findNextCrossing(sunriseMs, tithiDiffAt, 12, 3);
+
+  const moonSidRise = moonSidAt(sunriseMs);
+  const nakIdx = Math.floor(moonSidRise/(360/27));
+  const nakEndMs = findNextCrossing(sunriseMs, moonSidAt, 360/27, 3);
+
+  const yogaSumRise = yogaSumAt(sunriseMs);
+  const yogaIdx = Math.floor(yogaSumRise/(360/27));
+  const yogaEndMs = findNextCrossing(sunriseMs, yogaSumAt, 360/27, 3);
+
+  const karanaIdx = Math.floor(diffAtSunrise/6);
+  const karanaEndMs = findNextCrossing(sunriseMs, tithiDiffAt, 6, 2);
+
+  // Ayana
+  const sunSidRise = sunSidAt(sunriseMs);
+  const ayana = (sunSidRise>=90 && sunSidRise<270) ? "Dakshinayana" : "Uttarayana";
+
+  // Masa via the Sun's sidereal rashi at the end of the current lunar month (next new moon)
+  const nm = findNextNewMoon(sunriseMs);
+  let masaIdx = null, rituIdx = null;
+  if(nm){
+    const sunAtNM = norm360(sunLongAt(nm) - ayanAt(nm));
+    masaIdx = Math.floor(sunAtNM/30) % 12;
+    rituIdx = Math.floor(masaIdx/2);
+  }
+
+  // Samvatsara (Shaka-year based, 60-year cycle; approximate Ugadi boundary using masa)
+  let shakaYear;
+  if(m<=1) shakaYear = y-79;
+  else if(m===2) shakaYear = (masaIdx===11) ? y-79 : y-78; // Feb -> before Ugadi
+  else if(m===3) shakaYear = (masaIdx===11) ? y-79 : y-78;
+  else shakaYear = y-78;
+  const samvIdx = ((shakaYear+11)%60+60)%60;
+
+  const wIdx = weekdayIndex(y,m,d);
+
+  return {
+    vara: VARA_NAMES[wIdx],
+    weekdayEnglish: weekdayName(y,m,d),
+    samvatsara: SAMVATSARA[samvIdx],
+    ayana,
+    ritu: rituIdx!==null ? RITU_NAMES[rituIdx] : "—",
+    masa: masaIdx!==null ? MASA_NAMES[masaIdx] : "—",
+    paksha: tInfo.paksha,
+    tithi: tInfo.name,
+    tithiNum: tInfo.num,
+    tithiEndMs, tithiFracDone: null,
+    nakshatra: NAKSHATRAS[nakIdx], nakEndMs,
+    yoga: YOGAS[yogaIdx], yogaEndMs,
+    karana: karanaName(karanaIdx), karanaEndMs,
+    sunriseMs, sunsetMs,
+    diffAtSunrise
+  };
+}
+
+// ---------- Render ----------
+function pillow(ms,tz){ return ms ? fmtLocalTime(ms,tz) : "—"; }
+
+function computeTithiProgress(diffAtSunrise){
+  const within = diffAtSunrise % 12;
+  return within/12; // 0..1 elapsed within current tithi as of sunrise (approx for ring start)
+}
+
+function render(){
+  const app = document.getElementById('app');
+  const {loc, date} = state;
+  if(!loc || !date){ app.innerHTML = '<div class="loading">Reading the sky…</div>'; return; }
+
+  const p = computePanchanga(date.y,date.m,date.d,loc.lat,loc.lon,loc.tz);
+  const progress = computeTithiProgress(p.diffAtSunrise);
+  const circumference = 2*Math.PI*88;
+  const dashOffset = circumference*(1-Math.max(0.04,1-progress));
+
+  const sourceBadge = loc.source==='geo' ? '<span class="badge">Current</span>' : (loc.source==='default' ? '<span class="badge">Default</span>' : '');
+
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="locrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.5-7-11a7 7 0 1 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        <button class="locbtn" id="locBtn">${loc.name}${sourceBadge}</button>
+      </div>
+      <div class="datebar">
+        <button class="navbtn" id="prevDay">‹</button>
+        <label class="datelabel" id="dateLabel" for="dateInput">
+          <span class="wk">${p.weekdayEnglish}</span>
+          ${fmtLocalDate(date.y,date.m,date.d)}
+        </label>
+        <button class="navbtn" id="nextDay">›</button>
+      </div>
+      <input type="date" id="dateInput" value="${String(date.y).padStart(4,'0')}-${String(date.m).padStart(2,'0')}-${String(date.d).padStart(2,'0')}">
+    </div>
+
+    <div class="hero">
+      <div class="ringwrap">
+        <svg width="210" height="210" viewBox="0 0 200 200">
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#f4c77b"/>
+              <stop offset="100%" stop-color="#e3a857"/>
+            </linearGradient>
+          </defs>
+          <circle class="ring-bg" cx="100" cy="100" r="88"></circle>
+          <circle class="ring-fg" cx="100" cy="100" r="88" stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"></circle>
+        </svg>
+        <div class="ring-center">
+          <div class="paksha">${p.paksha}</div>
+          <div class="tithi">${p.tithi}</div>
+          <div class="until">till ${pillow(p.tithiEndMs,loc.tz)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">The Day</div>
+      <div class="card">
+        <div class="row"><div class="label">Vara (weekday)</div><div class="value">${p.vara}</div></div>
+        <div class="row"><div class="label">Samvatsara</div><div class="value">${p.samvatsara}</div></div>
+        <div class="row"><div class="label">Ayana</div><div class="value">${p.ayana}</div></div>
+        <div class="row"><div class="label">Ritu (season)</div><div class="value">${p.ritu}</div></div>
+        <div class="row"><div class="label">Masa (Chandramana)</div><div class="value">${p.masa}</div></div>
+        <div class="row"><div class="label">Paksha</div><div class="value">${p.paksha}</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Five Limbs (Panchanga)</div>
+      <div class="card">
+        <div class="row"><div class="label">Tithi</div><div class="value">${p.tithi}<span class="end">${pillow(p.tithiEndMs,loc.tz)}</span></div></div>
+        <div class="row"><div class="label">Nakshatra</div><div class="value">${p.nakshatra}<span class="end">${pillow(p.nakEndMs,loc.tz)}</span></div></div>
+        <div class="row"><div class="label">Yoga</div><div class="value">${p.yoga}<span class="end">${pillow(p.yogaEndMs,loc.tz)}</span></div></div>
+        <div class="row"><div class="label">Karana</div><div class="value">${p.karana}<span class="end">${pillow(p.karanaEndMs,loc.tz)}</span></div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Sun</div>
+      <div class="card sun-row">
+        <div class="sun-cell"><div class="icon">🌅</div><div class="time">${pillow(p.sunriseMs,loc.tz)}</div><div class="lbl">Sunrise</div></div>
+        <div class="sun-cell"><div class="icon">🌇</div><div class="time">${pillow(p.sunsetMs,loc.tz)}</div><div class="lbl">Sunset</div></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Panchanga computed locally (Lahiri ayanamsa, standard solar/lunar series) for ${loc.name}.
+      Times shown in ${loc.tz}. Cross-check with a trusted source for religious observances.
+      <br><button id="refreshBtn">Refresh now</button>
+    </div>
+  `;
+
+  document.getElementById('locBtn').onclick = openSheet;
+  document.getElementById('prevDay').onclick = ()=>shiftDay(-1);
+  document.getElementById('nextDay').onclick = ()=>shiftDay(1);
+  document.getElementById('dateInput').onchange = (e)=>{
+    const [y,m,d] = e.target.value.split('-').map(Number);
+    setDate(y,m,d);
+  };
+  document.getElementById('refreshBtn').onclick = ()=>{ saveCache(); render(); };
+}
+
+function shiftDay(delta){
+  const dt = new Date(Date.UTC(state.date.y, state.date.m-1, state.date.d+delta, 12,0,0));
+  state.date = {y:dt.getUTCFullYear(), m:dt.getUTCMonth()+1, d:dt.getUTCDate()};
+  saveCache();
+  render();
+}
+function setDate(y,m,d){
+  state.date = {y,m,d};
+  saveCache();
+  render();
+}
+
+// ---------- Location sheet ----------
+function openSheet(){
+  document.getElementById('sheetBackdrop').classList.add('open');
+  renderCityList('');
+}
+function closeSheet(){ document.getElementById('sheetBackdrop').classList.remove('open'); }
+function renderCityList(filter){
+  const list = document.getElementById('cityList');
+  const f = filter.trim().toLowerCase();
+  const filtered = CITIES.filter(c=>c.name.toLowerCase().includes(f));
+  list.innerHTML = filtered.map(c=>`<div class="cityopt" data-name="${c.name}">${c.name}</div>`).join('') || '<div style="padding:12px;color:var(--text-muted);font-size:13px;">No matches — try coordinates below.</div>';
+  Array.from(list.querySelectorAll('.cityopt')).forEach(el=>{
+    el.onclick = ()=>{
+      const city = CITIES.find(c=>c.name===el.dataset.name);
+      state.loc = {name:city.name, lat:city.lat, lon:city.lon, tz:city.tz, source:'manual'};
+      persistLoc();
+      closeSheet();
+      saveCache();
+      render();
+    };
+  });
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('sheetClose').onclick = closeSheet;
+  document.getElementById('sheetBackdrop').addEventListener('click',(e)=>{ if(e.target.id==='sheetBackdrop') closeSheet(); });
+  document.getElementById('citySearch').oninput = (e)=>renderCityList(e.target.value);
+  document.getElementById('manualToggle').onclick = ()=>{
+    const mf = document.getElementById('manualFields');
+    const btn = document.getElementById('manualSave');
+    const opening = !mf.classList.contains('open');
+    mf.classList.toggle('open');
+    btn.style.display = opening ? 'block' : 'none';
+  };
+  document.getElementById('manualSave').onclick = ()=>{
+    const lat = parseFloat(document.getElementById('manLat').value);
+    const lon = parseFloat(document.getElementById('manLon').value);
+    const tz = document.getElementById('manTz').value.trim() || 'UTC';
+    const name = document.getElementById('manName').value.trim() || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+    if(isNaN(lat) || isNaN(lon)){ alert('Enter valid latitude and longitude.'); return; }
+    try{ new Intl.DateTimeFormat('en-US',{timeZone:tz}); }catch(e){ alert('That timezone name is not recognized. Use an IANA name like America/Chicago.'); return; }
+    state.loc = {name, lat, lon, tz, source:'manual'};
+    persistLoc();
+    closeSheet();
+    saveCache();
+    render();
+  };
+});
+
+// ---------- Persistence ----------
+async function persistLoc(){
+  try{ await window.storage.set('panchanga:location', JSON.stringify(state.loc), false); }catch(e){}
+}
+async function loadPersistedLoc(){
+  try{
+    const r = await window.storage.get('panchanga:location', false);
+    if(r && r.value) return JSON.parse(r.value);
+  }catch(e){}
+  return null;
+}
+async function saveCache(){
+  try{
+    const key = `panchanga:cache:${state.loc.lat.toFixed(2)}_${state.loc.lon.toFixed(2)}_${state.date.y}-${state.date.m}-${state.date.d}`;
+    await window.storage.set(key, JSON.stringify({savedAt:Date.now(), loc:state.loc, date:state.date}), false);
+    await window.storage.set('panchanga:lastRefreshCheck', String(Date.now()), false);
+  }catch(e){}
+}
+
+// 1am CST daily refresh watcher
+function msUntilNext1amCST(){
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(now);
+  const o={}; parts.forEach(pp=>o[pp.type]=pp.value);
+  const curH = +o.hour, curM=+o.minute;
+  // Build today's 1am CST as a UTC instant by iterating (safe simple approach: construct candidate and adjust)
+  let candidate = new Date(now);
+  candidate.setUTCMinutes(candidate.getUTCMinutes() + ((curH<1)? (1-curH)*60 - curM : (25-curH)*60 - curM));
+  return Math.max(60000, candidate.getTime()-now.getTime());
+}
+function scheduleRefresh(){
+  setTimeout(()=>{
+    state.date = todayCivilInTz(state.loc.tz);
+    saveCache();
+    render();
+    scheduleRefresh();
+  }, msUntilNext1amCST());
+}
+
+// ---------- Init ----------
+async function init(){
+  const persisted = await loadPersistedLoc();
+  if(persisted){
+    state.loc = persisted;
+    state.date = todayCivilInTz(state.loc.tz);
+    render();
+    scheduleRefresh();
+    return;
+  }
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      (pos)=>{
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Chicago';
+        state.loc = {name:`Current location`, lat:pos.coords.latitude, lon:pos.coords.longitude, tz, source:'geo'};
+        state.date = todayCivilInTz(tz);
+        persistLoc();
+        saveCache();
+        render();
+        scheduleRefresh();
+      },
+      ()=>{
+        state.loc = {name:DEFAULT_CITY.name, lat:DEFAULT_CITY.lat, lon:DEFAULT_CITY.lon, tz:DEFAULT_CITY.tz, source:'default'};
+        state.date = todayCivilInTz(state.loc.tz);
+        persistLoc();
+        saveCache();
+        render();
+        scheduleRefresh();
+      },
+      {timeout:6000}
+    );
+  } else {
+    state.loc = {name:DEFAULT_CITY.name, lat:DEFAULT_CITY.lat, lon:DEFAULT_CITY.lon, tz:DEFAULT_CITY.tz, source:'default'};
+    state.date = todayCivilInTz(state.loc.tz);
+    persistLoc();
+    saveCache();
+    render();
+    scheduleRefresh();
+  }
+}
+init();
+})();
+</script>
+</body>
+</html>
