@@ -26,3 +26,27 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match(e.request))
   );
 });
+
+// ---------- Push notifications ----------
+self.addEventListener('push', (e) => {
+  let data = { title: 'Panchanga', body: 'Today has something on your watchlist.' };
+  try { if (e.data) data = e.data.json(); } catch (err) {}
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'Panchanga', {
+      body: data.body || '',
+      icon: 'icon-192.png',
+      badge: 'icon-192.png'
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((clientsArr) => {
+      const existing = clientsArr.find((c) => 'focus' in c);
+      if (existing) return existing.focus();
+      return self.clients.openWindow('./index.html');
+    })
+  );
+});
