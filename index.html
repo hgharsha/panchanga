@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Panchanga</title>
 
 <!-- PWA / installability -->
@@ -30,42 +30,36 @@
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
-html{overflow-x:hidden;}
 body{
   background:radial-gradient(ellipse at top, #1a1940 0%, var(--bg-deep) 55%);
   color:var(--text-primary);
   font-family:'Manrope',sans-serif;
   min-height:100vh;
-  min-height:100dvh;
-  overflow-x:hidden;
-  padding-bottom:calc(40px + env(safe-area-inset-bottom));
+  padding-bottom:40px;
 }
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
 }
 
-.wrap{max-width:480px; margin:0 auto; padding:0 16px; padding-left:calc(16px + env(safe-area-inset-left)); padding-right:calc(16px + env(safe-area-inset-right));}
+.wrap{max-width:480px; margin:0 auto; padding:0 16px;}
 
 /* Top bar */
 .topbar{
   position:sticky; top:0; z-index:20;
   background:rgba(18,18,42,0.92);
   backdrop-filter:blur(10px);
-  padding:calc(14px + env(safe-area-inset-top)) 16px 10px;
+  padding:14px 16px 10px;
   border-bottom:1px solid var(--divider);
 }
 .locrow{
   display:flex; align-items:center; gap:8px;
   font-size:13px; color:var(--text-muted);
-  min-width:0;
 }
 .locrow button.locbtn{
   background:none; border:none; color:var(--accent-glow);
   font-family:'Manrope',sans-serif; font-weight:600; font-size:14px;
   display:flex; align-items:center; gap:6px; cursor:pointer; padding:4px 2px;
-  min-width:0; overflow:hidden;
 }
-.locrow button.locbtn > span.loctext{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .locrow svg{width:14px;height:14px;flex-shrink:0;}
 .datebar{
   display:flex; align-items:center; justify-content:space-between;
@@ -146,22 +140,6 @@ body{
   border-radius:20px; padding:7px 14px; font-size:12px; font-family:'Manrope',sans-serif;
   margin-top:10px; cursor:pointer;
 }
-.remind-card{padding:16px;}
-.remind-status{font-size:13.5px; color:var(--text-muted); margin-bottom:10px; line-height:1.5;}
-.remind-actionbtn{
-  width:100%; background:var(--accent); color:#1a1740; border:none; border-radius:12px;
-  padding:12px; font-weight:700; font-size:14.5px; cursor:pointer; font-family:'Manrope',sans-serif;
-}
-.subbox{
-  margin-top:12px; background:var(--bg-deep); border:1px solid var(--divider); border-radius:10px;
-  padding:10px; font-family:'Space Mono',monospace; font-size:10.5px; color:var(--text-muted);
-  word-break:break-all; max-height:110px; overflow-y:auto; white-space:pre-wrap;
-}
-.copybtn{
-  margin-top:8px; width:100%; background:var(--bg-card-raised); border:1px solid var(--divider);
-  color:var(--accent-glow); border-radius:10px; padding:9px; font-size:13px; font-weight:600; cursor:pointer;
-  font-family:'Manrope',sans-serif;
-}
 
 .loading{
   display:flex; align-items:center; justify-content:center; min-height:60vh; color:var(--text-muted); font-size:14px;
@@ -175,7 +153,7 @@ body{
 .sheet-backdrop.open{display:flex;}
 .sheet{
   background:var(--bg-card-raised); width:100%; max-width:480px;
-  border-radius:20px 20px 0 0; padding:18px 18px calc(26px + env(safe-area-inset-bottom)); max-height:75vh; overflow-y:auto;
+  border-radius:20px 20px 0 0; padding:18px 18px 26px; max-height:75vh; overflow-y:auto;
   border-top:1px solid var(--divider);
 }
 .sheet h3{font-family:'Cormorant Garamond',serif; font-size:20px; margin:0 0 12px;}
@@ -426,79 +404,6 @@ const CITIES = [
 ];
 const DEFAULT_CITY = CITIES[0]; // Naperville, IL
 
-// ---------- Push notifications (Reminders) ----------
-// Public key only — safe to embed client-side. Generated once; paired private key
-// lives only in the GitHub Actions secret used by push/check-and-notify.js.
-const VAPID_PUBLIC_KEY = "BDk8zd_ulSLyhkFVeNQFa1F1Ywq40lxnN1XVfPG8ZRK4p7Dgy9uaJk-JL0HrWpHGOAbVQuuryzOa009ey-m2caA";
-
-function urlBase64ToUint8Array(base64String){
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for(let i=0;i<rawData.length;i++){ outputArray[i] = rawData.charCodeAt(i); }
-  return outputArray;
-}
-
-let lastSubscriptionJSON = null;
-
-function remindStatusText(){
-  if(!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)){
-    return "This browser doesn't support push notifications.";
-  }
-  if(Notification.permission === 'denied'){
-    return "Notifications are blocked for this app. Enable them in your phone's site settings to use reminders.";
-  }
-  if(Notification.permission === 'granted' && lastSubscriptionJSON){
-    return "Notifications are set up. If you haven't already, paste the JSON below into push/subscription.json in your GitHub repo — that's what lets the daily check actually reach this device.";
-  }
-  return "Get a phone notification for Ekadashi and any personal days you've added to the watchlist — even when the app is closed.";
-}
-function remindButtonText(){
-  if(!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return "Not supported";
-  if(Notification.permission === 'granted' && lastSubscriptionJSON) return "Show subscription JSON again";
-  return "Enable reminders";
-}
-
-async function handleRemindClick(){
-  if(!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
-  if(Notification.permission === 'granted' && lastSubscriptionJSON){
-    showSubscriptionBox(lastSubscriptionJSON);
-    return;
-  }
-  const perm = await Notification.requestPermission();
-  if(perm !== 'granted'){ render(); return; }
-  try{
-    const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-    if(!sub){
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-      });
-    }
-    lastSubscriptionJSON = JSON.stringify(sub.toJSON(), null, 2);
-    render();
-    showSubscriptionBox(lastSubscriptionJSON);
-  }catch(e){
-    alert('Could not set up notifications: ' + e.message);
-  }
-}
-
-function showSubscriptionBox(json){
-  const wrap = document.getElementById('subBoxWrap');
-  const box = document.getElementById('subBox');
-  if(wrap && box){ wrap.style.display='block'; box.textContent = json; }
-}
-
-function copySubscriptionJSON(){
-  if(!lastSubscriptionJSON) return;
-  navigator.clipboard.writeText(lastSubscriptionJSON).then(()=>{
-    const btn = document.getElementById('copySubBtn');
-    if(btn){ const orig=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>{btn.textContent=orig;},1500); }
-  }).catch(()=>{ alert('Copy failed — select the text above manually.'); });
-}
-
 // ---------- State ----------
 let state = {
   loc: null, // {name, lat, lon, tz, source}
@@ -614,7 +519,7 @@ function render(){
     <div class="topbar">
       <div class="locrow">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.5-7-11a7 7 0 1 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
-        <button class="locbtn" id="locBtn"><span class="loctext">${loc.name}</span>${sourceBadge}</button>
+        <button class="locbtn" id="locBtn">${loc.name}${sourceBadge}</button>
       </div>
       <div class="datebar">
         <button class="navbtn" id="prevDay">‹</button>
@@ -677,18 +582,6 @@ function render(){
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-title">Reminders</div>
-      <div class="card remind-card">
-        <div class="remind-status" id="remindStatus">${remindStatusText()}</div>
-        <button class="remind-actionbtn" id="remindBtn">${remindButtonText()}</button>
-        <div id="subBoxWrap" style="display:none;">
-          <div class="subbox" id="subBox"></div>
-          <button class="copybtn" id="copySubBtn">Copy subscription JSON</button>
-        </div>
-      </div>
-    </div>
-
     <div class="footer">
       Panchanga computed locally (Lahiri ayanamsa, standard solar/lunar series) for ${loc.name}.
       Times shown in ${loc.tz}. Cross-check with a trusted source for religious observances.
@@ -704,9 +597,6 @@ function render(){
     setDate(y,m,d);
   };
   document.getElementById('refreshBtn').onclick = ()=>{ saveCache(); render(); };
-  document.getElementById('remindBtn').onclick = handleRemindClick;
-  const copyBtn = document.getElementById('copySubBtn');
-  if(copyBtn) copyBtn.onclick = copySubscriptionJSON;
 }
 
 function shiftDay(delta){
@@ -810,17 +700,7 @@ function scheduleRefresh(){
 }
 
 // ---------- Init ----------
-async function checkExistingSubscription(){
-  try{
-    if(!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if(sub){ lastSubscriptionJSON = JSON.stringify(sub.toJSON(), null, 2); }
-  }catch(e){}
-}
-
 async function init(){
-  checkExistingSubscription().then(()=>render());
   const persisted = await loadPersistedLoc();
   if(persisted && persisted.source === 'manual'){
     state.loc = persisted;
