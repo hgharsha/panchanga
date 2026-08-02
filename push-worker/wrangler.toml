@@ -1,0 +1,15 @@
+name = "panchanga-push"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# Create with: wrangler kv namespace create SUBSCRIPTIONS
+# Then paste the returned id below.
+kv_namespaces = [
+  { binding = "SUBSCRIPTIONS", id = "REPLACE_WITH_KV_NAMESPACE_ID" }
+]
+
+# Fires once daily; sends every stored subscriber a content-free "wake up" push.
+# Each device's own service worker computes the day's panchanga and decides
+# whether to show a notification — this Worker never sees location or watchlist data.
+[triggers]
+crons = ["15 7 * * *"]

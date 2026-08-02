@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Panchanga</title>
+
+<!-- PWA / installability -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#12122a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Panchanga">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+:root{
+  --bg-deep:#12122a;
+  --bg-card:#1b1a38;
+  --bg-card-raised:#232047;
+  --accent:#e3a857;
+  --accent-glow:#f4c77b;
+  --text-primary:#f5efe0;
+  --text-muted:#8f8ab0;
+  --divider:#2e2b54;
+  --success:#7fb88a;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+html{overflow-x:hidden;}
+body{
+  background:radial-gradient(ellipse at top, #1a1940 0%, var(--bg-deep) 55%);
+  color:var(--text-primary);
+  font-family:'Manrope',sans-serif;
+  min-height:100vh;
+  min-height:100dvh;
+  overflow-x:hidden;
+  padding-bottom:calc(40px + env(safe-area-inset-bottom));
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+}
+
+.wrap{max-width:480px; margin:0 auto; padding:0 16px; padding-left:calc(16px + env(safe-area-inset-left)); padding-right:calc(16px + env(safe-area-inset-right));}
+
+/* Top bar */
+.topbar{
+  position:sticky; top:0; z-index:20;
+  background:rgba(18,18,42,0.92);
+  backdrop-filter:blur(10px);
+  padding:calc(14px + env(safe-area-inset-top)) 16px 10px;
+  border-bottom:1px solid var(--divider);
+}
+.locrow{
+  display:flex; align-items:center; gap:8px;
+  font-size:13px; color:var(--text-muted);
+  min-width:0;
+}
+.locrow button.locbtn{
+  background:none; border:none; color:var(--accent-glow);
+  font-family:'Manrope',sans-serif; font-weight:600; font-size:14px;
+  display:flex; align-items:center; gap:6px; cursor:pointer; padding:4px 2px;
+  min-width:0; overflow:hidden;
+}
+.locrow button.locbtn > span.loctext{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.locrow svg{width:14px;height:14px;flex-shrink:0;}
+.datebar{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-top:8px;
+}
+.datebar .navbtn{
+  width:36px; height:36px; border-radius:50%;
+  background:var(--bg-card-raised); border:1px solid var(--divider);
+  color:var(--text-primary); font-size:18px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+}
+.datebar .navbtn:active{background:var(--divider);}
+.datelabel{
+  font-family:'Cormorant Garamond',serif; font-weight:600; font-size:22px;
+  text-align:center; flex:1; cursor:pointer;
+}
+.datelabel .wk{display:block; font-family:'Manrope',sans-serif; font-weight:600; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent-glow); margin-bottom:2px;}
+
+/* Hidden native date input, invoked via label click */
+#dateInput{position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;}
+
+/* Hero ring */
+.hero{
+  display:flex; flex-direction:column; align-items:center;
+  padding:28px 0 8px;
+}
+.ringwrap{position:relative; width:210px; height:210px;}
+.ringwrap svg{transform:rotate(-90deg);}
+.ring-bg{fill:none; stroke:var(--divider); stroke-width:10;}
+.ring-fg{fill:none; stroke:url(#ringGrad); stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset 0.6s ease;}
+.ring-center{
+  position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:0 20px;
+}
+.ring-center .paksha{font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;}
+.ring-center .tithi{font-family:'Cormorant Garamond',serif; font-weight:700; font-size:30px; line-height:1.05;}
+.ring-center .until{font-family:'Space Mono',monospace; font-size:12px; color:var(--accent-glow); margin-top:6px;}
+.ring-center .ekadashi-countdown{font-family:'Space Mono',monospace; font-size:11px; color:var(--text-muted); margin-top:8px; letter-spacing:0.02em;}
+
+/* Ekadashi banner */
+.ekadashi-banner{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  margin:12px 0 0; padding:10px 14px;
+  border-radius:12px;
+  background:rgba(227,168,87,0.14);
+  border:1px solid rgba(227,168,87,0.4);
+  color:var(--accent-glow);
+  font-family:'Manrope',sans-serif; font-size:13px; font-weight:600;
+}
+.ekadashi-banner-close{
+  background:none; border:none; color:var(--accent-glow); font-size:14px;
+  cursor:pointer; padding:2px 4px; opacity:0.8; flex-shrink:0;
+}
+.ekadashi-banner-close:active{opacity:1;}
+
+/* Section cards */
+.section{margin-top:22px;}
+.section-title{
+  font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-muted);
+  margin:0 0 8px 4px; font-weight:700;
+}
+.card{
+  background:var(--bg-card);
+  border:1px solid var(--divider);
+  border-radius:16px;
+  overflow:hidden;
+}
+.row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:13px 16px;
+  border-bottom:1px solid var(--divider);
+}
+.row:last-child{border-bottom:none;}
+.row .label{font-size:14.5px; color:var(--text-muted); font-weight:500;}
+.row .value{font-size:14.5px; font-weight:700; text-align:right;}
+.row .value .end{
+  display:block; font-family:'Space Mono',monospace; font-weight:400; font-size:11.5px; color:var(--accent-glow); margin-top:2px;
+}
+.sun-row{
+  display:flex; gap:0;
+}
+.sun-cell{
+  flex:1; padding:16px; text-align:center;
+}
+.sun-cell + .sun-cell{border-left:1px solid var(--divider);}
+.sun-cell .icon{font-size:20px; margin-bottom:4px;}
+.sun-cell .time{font-family:'Space Mono',monospace; font-weight:700; font-size:19px;}
+.sun-cell .lbl{font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.1em; margin-top:2px;}
+
+.footer{
+  text-align:center; padding:26px 20px 10px; font-size:11.5px; color:var(--text-muted); line-height:1.6;
+}
+.footer button{
+  background:none; border:1px solid var(--divider); color:var(--text-muted);
+  border-radius:20px; padding:7px 14px; font-size:12px; font-family:'Manrope',sans-serif;
+  margin-top:10px; cursor:pointer;
+}
+
+.loading{
+  display:flex; align-items:center; justify-content:center; min-height:60vh; color:var(--text-muted); font-size:14px;
+}
+
+/* City picker sheet */
+.sheet-backdrop{
+  position:fixed; inset:0; background:rgba(10,10,24,0.7); z-index:50;
+  display:none; align-items:flex-end; justify-content:center;
+}
+.sheet-backdrop.open{display:flex;}
+.sheet{
+  background:var(--bg-card-raised); width:100%; max-width:480px;
+  border-radius:20px 20px 0 0; padding:18px 18px calc(26px + env(safe-area-inset-bottom)); max-height:75vh; overflow-y:auto;
+  border-top:1px solid var(--divider);
+}
+.sheet h3{font-family:'Cormorant Garamond',serif; font-size:20px; margin:0 0 12px;}
+.sheet input[type=text]{
+  width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--divider);
+  background:var(--bg-deep); color:var(--text-primary); font-size:15px; margin-bottom:10px; font-family:'Manrope',sans-serif;
+}
+.citylist{max-height:260px; overflow-y:auto; margin-bottom:6px;}
+.cityopt{
+  padding:11px 8px; border-bottom:1px solid var(--divider); cursor:pointer; font-size:14.5px;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.cityopt:active{background:var(--divider);}
+.cityopt .sub{color:var(--text-muted); font-size:12px;}
+.sheet .manualbtn{
+  width:100%; text-align:left; padding:11px 8px; color:var(--accent-glow); font-size:14px; cursor:pointer; font-weight:600;
+}
+.manualfields{display:none; gap:8px;}
+.manualfields.open{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;}
+.manualfields input{flex:1; min-width:100px; padding:10px; border-radius:10px; border:1px solid var(--divider); background:var(--bg-deep); color:var(--text-primary); font-family:'Space Mono',monospace; font-size:13px;}
+.sheet .savebtn{
+  width:100%; background:var(--accent); color:#1a1740; border:none; border-radius:12px;
+  padding:13px; font-weight:700; font-size:15px; margin-top:12px; cursor:pointer; font-family:'Manrope',sans-serif;
+}
+.sheet .closebtn{
+  width:100%; background:none; border:none; color:var(--text-muted); padding:10px; font-size:13px; cursor:pointer;
+}
+.badge{
+  display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:20px; margin-left:6px;
+  background:rgba(227,168,87,0.15); color:var(--accent-glow); font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+}
+
+/* Reminders */
+.remind-card{padding:16px;}
+.remind-status{font-size:13.5px; color:var(--text-muted); margin-bottom:10px; line-height:1.5;}
+.remind-actionbtn{
+  width:100%; background:var(--accent); color:#1a1740; border:none; border-radius:12px;
+  padding:12px; font-weight:700; font-size:14.5px; cursor:pointer; font-family:'Manrope',sans-serif;
+}
+.remind-actionbtn.off{background:none; border:1px solid var(--divider); color:var(--text-muted);}
+.watchrow{
+  display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--divider);
+}
+.watchrow:last-child{border-bottom:none;}
+.watchrow .wlabel{font-size:14px;}
+.watchrow .wsub{font-size:11.5px; color:var(--text-muted);}
+.switch{position:relative; width:40px; height:24px; flex-shrink:0;}
+.switch input{opacity:0; width:0; height:0;}
+.switch .slider{position:absolute; inset:0; background:var(--divider); border-radius:24px; cursor:pointer; transition:0.2s;}
+.switch .slider:before{content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; background:var(--text-primary); border-radius:50%; transition:0.2s;}
+.switch input:checked + .slider{background:var(--accent);}
+.switch input:checked + .slider:before{transform:translateX(16px); background:#1a1740;}
+.removebtn{background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer; padding:4px 8px;}
+.addbtn{
+  width:100%; background:var(--bg-card-raised); border:1px solid var(--divider); color:var(--accent-glow);
+  border-radius:10px; padding:11px; font-size:13.5px; font-weight:600; cursor:pointer; margin-top:12px; font-family:'Manrope',sans-serif;
+}
+.wentry-form select, .wentry-form input[type=text], .wentry-form input[type=number]{
+  width:100%; padding:10px; border-radius:10px; border:1px solid var(--divider);
+  background:var(--bg-deep); color:var(--text-primary); font-size:14px; margin-bottom:8px; font-family:'Manrope',sans-serif;
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="loading">Reading the sky…</div>
+</div>
+
+<div class="sheet-backdrop" id="sheetBackdrop">
+  <div class="sheet">
+    <h3>Set location</h3>
+    <input type="text" id="citySearch" placeholder="Search a city…">
+    <div class="citylist" id="cityList"></div>
+    <div class="manualbtn" id="manualToggle">Enter coordinates manually</div>
+    <div class="manualfields" id="manualFields">
+      <input type="text" id="manLat" placeholder="Latitude">
+      <input type="text" id="manLon" placeholder="Longitude">
+      <input type="text" id="manTz" placeholder="IANA timezone e.g. America/Chicago">
+      <input type="text" id="manName" placeholder="Label">
+    </div>
+    <button class="savebtn" id="manualSave" style="display:none;">Use these coordinates</button>
+    <button class="closebtn" id="sheetClose">Cancel</button>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="addWatchBackdrop">
+  <div class="sheet">
+    <h3>Add a reminder</h3>
+    <div class="wentry-form">
+      <input type="text" id="wLabel" placeholder="Label, e.g. Amma's birthday">
+      <select id="wType">
+        <option value="fixed">Fixed calendar date (every year)</option>
+        <option value="nakshatra">By nakshatra (lunar birthday)</option>
+        <option value="tithi">By tithi (lunar anniversary)</option>
+      </select>
+      <div id="wFieldsFixed">
+        <input type="number" id="wMonth" placeholder="Month (1-12)" min="1" max="12">
+        <input type="number" id="wDay" placeholder="Day" min="1" max="31">
+      </div>
+      <div id="wFieldsNakshatra" style="display:none;">
+        <select id="wNakshatra"></select>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);margin-bottom:8px;">
+          <input type="checkbox" id="wNakMasaCheck"> Only in a specific masa (yearly)
+        </label>
+        <select id="wNakMasa" style="display:none;"></select>
+      </div>
+      <div id="wFieldsTithi" style="display:none;">
+        <select id="wTithiNum"></select>
+        <select id="wTithiPaksha">
+          <option value="Shukla">Shukla Paksha</option>
+          <option value="Krishna">Krishna Paksha</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);margin-bottom:8px;">
+          <input type="checkbox" id="wTithiMasaCheck"> Only in a specific masa (yearly)
+        </label>
+        <select id="wTithiMasa" style="display:none;"></select>
+      </div>
+    </div>
+    <button class="savebtn" id="wSave">Add reminder</button>
+    <button class="closebtn" id="wClose">Cancel</button>
+  </div>
+</div>
+
+<script src="astro.js"></script>
+<script src="idb.js"></script>
+<script>
+// ---------- Storage polyfill (localStorage-backed, works on any host) ----------
+window.storage = {
+  async get(key){
+    try{ const v = localStorage.getItem(key); return v===null ? null : {key, value:v}; }
+    catch(e){ return null; }
+  },
+  async set(key, value){
+    try{ localStorage.setItem(key, value); return {key, value}; }
+    catch(e){ return null; }
+  },
+  async delete(key){
+    try{ localStorage.removeItem(key); return {key, deleted:true}; }
+    catch(e){ return null; }
+  },
+  async list(prefix){
+    try{
+      const keys=[];
+      for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!prefix||k.startsWith(prefix)) keys.push(k); }
+      return {keys, prefix};
+    }catch(e){ return null; }
+  }
+};
+
+let swRegistration = null;
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{ swRegistration = reg; }).catch(()=>{});
+  });
+}
+
+(function(){
+
+const { computePanchanga, matchWatchlist, todayCivilInTz, weekdayName, weekdayIndex,
+        NAKSHATRAS, MASA_NAMES } = window.PanchangaAstro;
+
+// ---------- Push backend ----------
+// Fill in after deploying push-worker/ (see push-worker/README.md).
+// Public key only — safe to embed client-side; the paired private key lives
+// only as a Cloudflare Worker secret.
+const PUSH_WORKER_URL = "https://panchanga-push.YOUR-SUBDOMAIN.workers.dev";
+const VAPID_PUBLIC_KEY = "REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY";
+
+// ---------- Cities (no network geocoding available; curated list + manual entry) ----------
+const CITIES = [
+ {name:"Naperville, IL, USA", lat:41.7508, lon:-88.1535, tz:"America/Chicago"},
+ {name:"Chicago, IL, USA", lat:41.8781, lon:-87.6298, tz:"America/Chicago"},
+ {name:"New York, NY, USA", lat:40.7128, lon:-74.0060, tz:"America/New_York"},
+ {name:"Los Angeles, CA, USA", lat:34.0522, lon:-118.2437, tz:"America/Los_Angeles"},
+ {name:"San Francisco, CA, USA", lat:37.7749, lon:-122.4194, tz:"America/Los_Angeles"},
+ {name:"Seattle, WA, USA", lat:47.6062, lon:-122.3321, tz:"America/Los_Angeles"},
+ {name:"Houston, TX, USA", lat:29.7604, lon:-95.3698, tz:"America/Chicago"},
+ {name:"Dallas, TX, USA", lat:32.7767, lon:-96.7970, tz:"America/Chicago"},
+ {name:"Atlanta, GA, USA", lat:33.7490, lon:-84.3880, tz:"America/New_York"},
+ {name:"Boston, MA, USA", lat:42.3601, lon:-71.0589, tz:"America/New_York"},
+ {name:"Washington, DC, USA", lat:38.9072, lon:-77.0369, tz:"America/New_York"},
+ {name:"Denver, CO, USA", lat:39.7392, lon:-104.9903, tz:"America/Denver"},
+ {name:"Phoenix, AZ, USA", lat:33.4484, lon:-112.0740, tz:"America/Phoenix"},
+ {name:"Mettawa, IL, USA", lat:42.2333, lon:-87.9273, tz:"America/Chicago"},
+ {name:"Toronto, Canada", lat:43.6532, lon:-79.3832, tz:"America/Toronto"},
+ {name:"London, UK", lat:51.5074, lon:-0.1278, tz:"Europe/London"},
+ {name:"Mumbai, India", lat:19.0760, lon:72.8777, tz:"Asia/Kolkata"},
+ {name:"Delhi, India", lat:28.6139, lon:77.2090, tz:"Asia/Kolkata"},
+ {name:"Bengaluru, India", lat:12.9716, lon:77.5946, tz:"Asia/Kolkata"},
+ {name:"Hyderabad, India", lat:17.3850, lon:78.4867, tz:"Asia/Kolkata"},
+ {name:"Chennai, India", lat:13.0827, lon:80.2707, tz:"Asia/Kolkata"},
+ {name:"Vijayawada, India", lat:16.5062, lon:80.6480, tz:"Asia/Kolkata"},
+ {name:"Tirupati, India", lat:13.6288, lon:79.4192, tz:"Asia/Kolkata"},
+ {name:"Pune, India", lat:18.5204, lon:73.8567, tz:"Asia/Kolkata"},
+ {name:"Kolkata, India", lat:22.5726, lon:88.3639, tz:"Asia/Kolkata"},
+ {name:"Dubai, UAE", lat:25.2048, lon:55.2708, tz:"Asia/Dubai"},
+ {name:"Singapore", lat:1.3521, lon:103.8198, tz:"Asia/Singapore"},
+ {name:"Sydney, Australia", lat:-33.8688, lon:151.2093, tz:"Australia/Sydney"},
+];
+const DEFAULT_CITY = CITIES[0]; // Naperville, IL
+
+// ---------- State ----------
+let state = {
+  loc: null, // {name, lat, lon, tz, source}
+  date: null, // {y,m,d} civil date being viewed
+  watchlist: null, // {ekadashi, personal:[]}
+  pushStatus: 'unknown' // 'unsupported' | 'off' | 'on'
+};
+
+function fmtLocalTime(ms, tz){
+  return new Intl.DateTimeFormat('en-US',{timeZone:tz,hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(ms));
+}
+function fmtLocalDate(y,m,d){
+  const dt = new Date(Date.UTC(y,m-1,d,12,0,0));
+  return new Intl.DateTimeFormat('en-US',{timeZone:'UTC',month:'long',day:'numeric',year:'numeric'}).format(dt);
+}
+
+// ---------- Render ----------
+function pillow(ms,tz){ return ms ? fmtLocalTime(ms,tz) : "—"; }
+
+function computeTithiProgress(diffAtSunrise){
+  const within = diffAtSunrise % 12;
+  return within/12; // 0..1 elapsed within current tithi as of sunrise (approx for ring start)
+}
+
+function watchEntryDesc(entry){
+  if(entry.type === 'fixed') return `${entry.month}/${entry.day} every year`;
+  if(entry.type === 'nakshatra') return `${entry.nakshatra}${entry.masa ? ' · ' + entry.masa + ' masa (yearly)' : ' · every lunar month'}`;
+  if(entry.type === 'tithi') return `${entry.tithi === 11 ? 'Ekadashi' : 'Tithi ' + entry.tithi} (${entry.paksha} Paksha)${entry.masa ? ' · ' + entry.masa + ' masa (yearly)' : ' · every lunar month'}`;
+  return '';
+}
+
+function render(){
+  const app = document.getElementById('app');
+  const {loc, date} = state;
+  if(!loc || !date){ app.innerHTML = '<div class="loading">Reading the sky…</div>'; return; }
+
+  const p = computePanchanga(date.y,date.m,date.d,loc.lat,loc.lon,loc.tz);
+  const progress = computeTithiProgress(p.diffAtSunrise);
+  const circumference = 2*Math.PI*88;
+  const dashOffset = circumference*(1-Math.max(0.04,1-progress));
+
+  const sourceBadge = loc.source==='geo' ? '<span class="badge">Current</span>' : (loc.source==='default' ? '<span class="badge">Default</span>' : '');
+
+  const ekadashiInfo = PanchangaAstro.daysToNextEkadashi(date.y,date.m,date.d,loc.lat,loc.lon,loc.tz);
+  const ekadashiDateKey = ekadashiInfo ? `${ekadashiInfo.year}-${String(ekadashiInfo.month).padStart(2,'0')}-${String(ekadashiInfo.day).padStart(2,'0')}` : null;
+  let ekadashiCounterText = '';
+  if(ekadashiInfo){
+    ekadashiCounterText = ekadashiInfo.days===0 ? 'Ekadashi today' : ekadashiInfo.days===1 ? 'Ekadashi tomorrow' : `Ekadashi in ${ekadashiInfo.days} days`;
+  }
+  const showEkadashiBanner = ekadashiInfo && (ekadashiInfo.days===0 || ekadashiInfo.days===1)
+    && localStorage.getItem('ekadashiBannerDismissedFor') !== ekadashiDateKey;
+
+  const wl = state.watchlist || {ekadashi:true, personal:[]};
+  const personalRows = wl.personal.map((entry, i) => `
+    <div class="watchrow">
+      <div><div class="wlabel">${entry.label}</div><div class="wsub">${watchEntryDesc(entry)}</div></div>
+      <button class="removebtn" data-idx="${i}">✕</button>
+    </div>
+  `).join('');
+
+  let remindStatusText, remindBtnText, remindBtnClass = '';
+  if(state.pushStatus === 'unsupported'){
+    remindStatusText = "This browser doesn't support push notifications.";
+    remindBtnText = "Not supported";
+  } else if(state.pushStatus === 'on'){
+    remindStatusText = "Reminders are on — you'll get a phone notification for anything on your watchlist below, even when the app is closed.";
+    remindBtnText = "Turn off reminders";
+    remindBtnClass = 'off';
+  } else {
+    remindStatusText = "Get a phone notification for Ekadashi and any personal days on your watchlist below — even when the app is closed.";
+    remindBtnText = "Enable reminders";
+  }
+
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="locrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.5-7-11a7 7 0 1 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        <button class="locbtn" id="locBtn"><span class="loctext">${loc.name}</span>${sourceBadge}</button>
+      </div>
+      <div class="datebar">
+        <button class="navbtn" id="prevDay">‹</button>
+        <label class="datelabel" id="dateLabel" for="dateInput">
+          <span class="wk">${p.weekdayEnglish}</span>
+          ${fmtLocalDate(date.y,date.m,date.d)}
+        </label>
+        <button class="navbtn" id="nextDay">›</button>
+      </div>
+      <input type="date" id="dateInput" value="${String(date.y).padStart(4,'0')}-${String(date.m).padStart(2,'0')}-${String(date.d).padStart(2,'0')}">
+    </div>
+
+    ${showEkadashiBanner ? `
+    <div class="ekadashi-banner" id="ekadashiBanner">
+      <span>🌙 ${ekadashiInfo.days===0 ? 'Ekadashi is today' : 'Ekadashi is tomorrow'} (${ekadashiInfo.paksha})</span>
+      <button class="ekadashi-banner-close" id="ekadashiBannerClose">✕</button>
+    </div>` : ''}
+
+    <div class="hero">
+      <div class="ringwrap">
+        <svg width="210" height="210" viewBox="0 0 200 200">
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#f4c77b"/>
+              <stop offset="100%" stop-color="#e3a857"/>
+            </linearGradient>
+          </defs>
+          <circle class="ring-bg" cx="100" cy="100" r="88"></circle>
+          <circle class="ring-fg" cx="100" cy="100" r="88" stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"></circle>
+        </svg>
+        <div class="ring-center">
+          <div class="paksha">${p.paksha}</div>
+          <div class="tithi">${p.tithi}</div>
+          <div class="until">till ${pillow(p.tithiEndMs,loc.tz)}</div>
+          ${ekadashiCounterText ? `<div class="ekadashi-countdown">${ekadashiCounterText}</div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">The Day</div>
+      <div class="card">
+        <div class="row"><div class="label">Vara (weekday)</div><div class="value">${p.vara}</div></div>
+        <div class="row"><div class="label">Samvatsara</div><div class="value">${p.samvatsara}</div></div>
+        <div class="row"><div class="label">Ayana</div><div class="value">${p.ayana}</div></div>
+        <div class="row"><div class="label">Ritu (season)</div><div class="value">${p.ritu}</div></div>
+        <div class="row"><div class="label">Masa (Chandramana)</div><div class="value">${p.masa}</div></div>
+        <div class="row"><div class="label">Paksha</div><div class="value">${p.paksha}</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Five Limbs (Panchanga)</div>
+      <div class="card">
+        <div class="row"><div class="label">Tithi</div><div class="value">${p.tithi}<span class="end">${pillow(p.tithiEndMs,loc.tz)}</span></div></div>
+        <div class="row"><div class="label">Nakshatra</div><div class="value">${p.nakshatra}<span class="end">${pillow(p.nakEndMs,loc.tz)}</span></div></div>
+        <div class="row"><div class="label">Yoga</div><div class="value">${p.yoga}<span class="end">${pillow(p.yogaEndMs,loc.tz)}</span></div></div>
+        <div class="row"><div class="label">Karana</div><div class="value">${p.karana}<span class="end">${pillow(p.karanaEndMs,loc.tz)}</span></div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Sun</div>
+      <div class="card sun-row">
+        <div class="sun-cell"><div class="icon">🌅</div><div class="time">${pillow(p.sunriseMs,loc.tz)}</div><div class="lbl">Sunrise</div></div>
+        <div class="sun-cell"><div class="icon">🌇</div><div class="time">${pillow(p.sunsetMs,loc.tz)}</div><div class="lbl">Sunset</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Reminders</div>
+      <div class="card remind-card">
+        <div class="remind-status" id="remindStatus">${remindStatusText}</div>
+        <button class="remind-actionbtn ${remindBtnClass}" id="remindBtn">${remindBtnText}</button>
+        <div class="watchrow" style="margin-top:14px;">
+          <div><div class="wlabel">Ekadashi watch</div><div class="wsub">Notify on every Ekadashi</div></div>
+          <label class="switch"><input type="checkbox" id="ekadashiToggle" ${wl.ekadashi?'checked':''}><span class="slider"></span></label>
+        </div>
+        ${personalRows}
+        <button class="addbtn" id="addWatchBtn">+ Add a personal reminder</button>
+      </div>
+    </div>
+
+    <div class="footer">
+      Panchanga computed locally (Lahiri ayanamsa, standard solar/lunar series) for ${loc.name}.
+      Times shown in ${loc.tz}. Cross-check with a trusted source for religious observances.
+      <br><button id="refreshBtn">Refresh now</button>
+    </div>
+  `;
+
+  document.getElementById('locBtn').onclick = openSheet;
+  document.getElementById('prevDay').onclick = ()=>shiftDay(-1);
+  document.getElementById('nextDay').onclick = ()=>shiftDay(1);
+  document.getElementById('dateInput').onchange = (e)=>{
+    const [y,m,d] = e.target.value.split('-').map(Number);
+    setDate(y,m,d);
+  };
+  document.getElementById('refreshBtn').onclick = ()=>{ render(); };
+  document.getElementById('remindBtn').onclick = handleRemindClick;
+  document.getElementById('ekadashiToggle').onchange = (e)=>{
+    state.watchlist.ekadashi = e.target.checked;
+    persistWatchlist();
+  };
+  document.getElementById('addWatchBtn').onclick = openAddWatchSheet;
+  const ekadashiBannerClose = document.getElementById('ekadashiBannerClose');
+  if(ekadashiBannerClose){
+    ekadashiBannerClose.onclick = ()=>{
+      localStorage.setItem('ekadashiBannerDismissedFor', ekadashiDateKey);
+      document.getElementById('ekadashiBanner').remove();
+    };
+  }
+  Array.from(document.querySelectorAll('.removebtn')).forEach(btn=>{
+    btn.onclick = ()=>{
+      state.watchlist.personal.splice(+btn.dataset.idx, 1);
+      persistWatchlist();
+      render();
+    };
+  });
+}
+
+function shiftDay(delta){
+  const dt = new Date(Date.UTC(state.date.y, state.date.m-1, state.date.d+delta, 12,0,0));
+  state.date = {y:dt.getUTCFullYear(), m:dt.getUTCMonth()+1, d:dt.getUTCDate()};
+  render();
+}
+function setDate(y,m,d){
+  state.date = {y,m,d};
+  render();
+}
+
+// ---------- Location sheet ----------
+function openSheet(){
+  document.getElementById('sheetBackdrop').classList.add('open');
+  renderCityList('');
+}
+function closeSheet(){ document.getElementById('sheetBackdrop').classList.remove('open'); }
+function renderCityList(filter){
+  const list = document.getElementById('cityList');
+  const f = filter.trim().toLowerCase();
+  const filtered = CITIES.filter(c=>c.name.toLowerCase().includes(f));
+  list.innerHTML = filtered.map(c=>`<div class="cityopt" data-name="${c.name}">${c.name}</div>`).join('') || '<div style="padding:12px;color:var(--text-muted);font-size:13px;">No matches — try coordinates below.</div>';
+  Array.from(list.querySelectorAll('.cityopt')).forEach(el=>{
+    el.onclick = ()=>{
+      const city = CITIES.find(c=>c.name===el.dataset.name);
+      state.loc = {name:city.name, lat:city.lat, lon:city.lon, tz:city.tz, source:'manual'};
+      persistLoc();
+      closeSheet();
+      render();
+    };
+  });
+}
+
+// ---------- Add-reminder sheet ----------
+function populateWatchSelects(){
+  const nakSel = document.getElementById('wNakshatra');
+  nakSel.innerHTML = NAKSHATRAS.map(n=>`<option value="${n}">${n}</option>`).join('');
+  const masaOpts = MASA_NAMES.map(m=>`<option value="${m}">${m}</option>`).join('');
+  document.getElementById('wNakMasa').innerHTML = masaOpts;
+  document.getElementById('wTithiMasa').innerHTML = masaOpts;
+  const tNumSel = document.getElementById('wTithiNum');
+  tNumSel.innerHTML = Array.from({length:15},(_,i)=>i+1).map(n=>`<option value="${n}">${n===11?'11 — Ekadashi':n}</option>`).join('');
+}
+function openAddWatchSheet(){
+  document.getElementById('wLabel').value = '';
+  document.getElementById('wType').value = 'fixed';
+  document.getElementById('wMonth').value = '';
+  document.getElementById('wDay').value = '';
+  document.getElementById('wNakMasaCheck').checked = false;
+  document.getElementById('wNakMasa').style.display = 'none';
+  document.getElementById('wTithiMasaCheck').checked = false;
+  document.getElementById('wTithiMasa').style.display = 'none';
+  updateWatchTypeFields();
+  document.getElementById('addWatchBackdrop').classList.add('open');
+}
+function closeAddWatchSheet(){ document.getElementById('addWatchBackdrop').classList.remove('open'); }
+function updateWatchTypeFields(){
+  const type = document.getElementById('wType').value;
+  document.getElementById('wFieldsFixed').style.display = type==='fixed' ? 'block' : 'none';
+  document.getElementById('wFieldsNakshatra').style.display = type==='nakshatra' ? 'block' : 'none';
+  document.getElementById('wFieldsTithi').style.display = type==='tithi' ? 'block' : 'none';
+}
+function saveNewWatchEntry(){
+  const label = document.getElementById('wLabel').value.trim();
+  if(!label){ alert('Enter a label.'); return; }
+  const type = document.getElementById('wType').value;
+  let entry = { label, type };
+  if(type === 'fixed'){
+    const month = +document.getElementById('wMonth').value;
+    const day = +document.getElementById('wDay').value;
+    if(!month || !day || month<1 || month>12 || day<1 || day>31){ alert('Enter a valid month and day.'); return; }
+    entry.month = month; entry.day = day;
+  } else if(type === 'nakshatra'){
+    entry.nakshatra = document.getElementById('wNakshatra').value;
+    if(document.getElementById('wNakMasaCheck').checked) entry.masa = document.getElementById('wNakMasa').value;
+  } else if(type === 'tithi'){
+    entry.tithi = +document.getElementById('wTithiNum').value;
+    entry.paksha = document.getElementById('wTithiPaksha').value;
+    if(document.getElementById('wTithiMasaCheck').checked) entry.masa = document.getElementById('wTithiMasa').value;
+  }
+  state.watchlist.personal.push(entry);
+  persistWatchlist();
+  closeAddWatchSheet();
+  render();
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  populateWatchSelects();
+
+  document.getElementById('sheetClose').onclick = closeSheet;
+  document.getElementById('sheetBackdrop').addEventListener('click',(e)=>{ if(e.target.id==='sheetBackdrop') closeSheet(); });
+  document.getElementById('citySearch').oninput = (e)=>renderCityList(e.target.value);
+  document.getElementById('manualToggle').onclick = ()=>{
+    const mf = document.getElementById('manualFields');
+    const btn = document.getElementById('manualSave');
+    const opening = !mf.classList.contains('open');
+    mf.classList.toggle('open');
+    btn.style.display = opening ? 'block' : 'none';
+  };
+  document.getElementById('manualSave').onclick = ()=>{
+    const lat = parseFloat(document.getElementById('manLat').value);
+    const lon = parseFloat(document.getElementById('manLon').value);
+    const tz = document.getElementById('manTz').value.trim() || 'UTC';
+    const name = document.getElementById('manName').value.trim() || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+    if(isNaN(lat) || isNaN(lon)){ alert('Enter valid latitude and longitude.'); return; }
+    try{ new Intl.DateTimeFormat('en-US',{timeZone:tz}); }catch(e){ alert('That timezone name is not recognized. Use an IANA name like America/Chicago.'); return; }
+    state.loc = {name, lat, lon, tz, source:'manual'};
+    persistLoc();
+    closeSheet();
+    render();
+  };
+
+  document.getElementById('wClose').onclick = closeAddWatchSheet;
+  document.getElementById('addWatchBackdrop').addEventListener('click',(e)=>{ if(e.target.id==='addWatchBackdrop') closeAddWatchSheet(); });
+  document.getElementById('wType').onchange = updateWatchTypeFields;
+  document.getElementById('wNakMasaCheck').onchange = (e)=>{ document.getElementById('wNakMasa').style.display = e.target.checked?'block':'none'; };
+  document.getElementById('wTithiMasaCheck').onchange = (e)=>{ document.getElementById('wTithiMasa').style.display = e.target.checked?'block':'none'; };
+  document.getElementById('wSave').onclick = saveNewWatchEntry;
+});
+
+// ---------- Persistence ----------
+// Location + watchlist live in IndexedDB (not localStorage) because sw.js's
+// push handler can only read IndexedDB, and both need to see the same data.
+async function persistLoc(){
+  try{ await window.PanchangaIDB.set('location', state.loc); }catch(e){}
+}
+async function persistWatchlist(){
+  try{ await window.PanchangaIDB.set('watchlist', state.watchlist); }catch(e){}
+}
+async function loadPersistedLoc(){
+  try{ return await window.PanchangaIDB.get('location'); }catch(e){ return null; }
+}
+async function loadPersistedWatchlist(){
+  try{ return await window.PanchangaIDB.get('watchlist'); }catch(e){ return null; }
+}
+
+// ---------- Push notifications (Reminders) ----------
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for(let i=0;i<rawData.length;i++){ outputArray[i] = rawData.charCodeAt(i); }
+  return outputArray;
+}
+
+async function refreshPushStatus(){
+  if(!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)){
+    state.pushStatus = 'unsupported';
+    return;
+  }
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    state.pushStatus = (sub && Notification.permission === 'granted') ? 'on' : 'off';
+  }catch(e){
+    state.pushStatus = 'off';
+  }
+}
+
+async function handleRemindClick(){
+  if(state.pushStatus === 'unsupported') return;
+  if(state.pushStatus === 'on'){
+    try{
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if(sub){
+        await fetch(PUSH_WORKER_URL + '/unsubscribe', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ endpoint: sub.endpoint })
+        }).catch(()=>{});
+        await sub.unsubscribe();
+      }
+    }catch(e){}
+    await refreshPushStatus();
+    render();
+    return;
+  }
+
+  const perm = await Notification.requestPermission();
+  if(perm !== 'granted'){ await refreshPushStatus(); render(); return; }
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    await fetch(PUSH_WORKER_URL + '/subscribe', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(sub.toJSON())
+    });
+  }catch(e){
+    alert('Could not set up notifications: ' + e.message);
+  }
+  await refreshPushStatus();
+  render();
+}
+
+// ---------- Init ----------
+async function init(){
+  const persisted = await loadPersistedLoc();
+  const persistedWatchlist = await loadPersistedWatchlist();
+  state.watchlist = persistedWatchlist || {ekadashi:true, personal:[]};
+
+  if(persisted && persisted.source === 'manual'){
+    state.loc = persisted;
+  } else if(navigator.geolocation){
+    await new Promise(resolve=>{
+      navigator.geolocation.getCurrentPosition(
+        (pos)=>{
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Chicago';
+          state.loc = {name:`Current location`, lat:pos.coords.latitude, lon:pos.coords.longitude, tz, source:'geo'};
+          resolve();
+        },
+        ()=>{
+          state.loc = {name:DEFAULT_CITY.name, lat:DEFAULT_CITY.lat, lon:DEFAULT_CITY.lon, tz:DEFAULT_CITY.tz, source:'default'};
+          resolve();
+        },
+        {timeout:6000}
+      );
+    });
+  } else {
+    state.loc = {name:DEFAULT_CITY.name, lat:DEFAULT_CITY.lat, lon:DEFAULT_CITY.lon, tz:DEFAULT_CITY.tz, source:'default'};
+  }
+
+  state.date = todayCivilInTz(state.loc.tz);
+  persistLoc();
+  await refreshPushStatus();
+  render();
+}
+init();
+})();
+</script>
+</body>
+</html>
