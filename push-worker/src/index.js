@@ -15,7 +15,10 @@
 
 function corsHeaders(origin, allowedOrigin) {
   const headers = { 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
-  if (origin === allowedOrigin) headers['Access-Control-Allow-Origin'] = allowedOrigin;
+  // trim() guards against invisible trailing whitespace picked up when the
+  // secret was set from a shell pipeline.
+  const allowed = (allowedOrigin || '').trim();
+  if (origin === allowed) headers['Access-Control-Allow-Origin'] = allowed;
   return headers;
 }
 
