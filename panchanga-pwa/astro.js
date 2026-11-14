@@ -150,6 +150,21 @@ function weekdayIndex(y,m,d){
   return new Date(Date.UTC(y,m-1,d,12,0,0)).getUTCDay(); // 0=Sun
 }
 
+// Limbs that follow `firstEndMs` before `limitMs` (the next sunrise). A tithi/karana can end
+// and the next one begin and even end between two sunrises, so chain crossings until the limit.
+// nameAt(value) maps the angle at a moment just after each transition to that limb's name.
+function followOn(firstEndMs, limitMs, valueFn, period, nameAt){
+  const out = [];
+  let end = firstEndMs;
+  while(end && end < limitMs && out.length < 4){
+    const start = end + 60000; // step clear of the crossing so the angle is firmly in the new limb
+    const next = findNextCrossing(start, valueFn, period, 3);
+    out.push({ name: nameAt(valueFn(start)), endMs: next });
+    end = next;
+  }
+  return out;
+}
+
 // ---------- Core panchanga computation for a civil date+location ----------
 function computePanchanga(y,m,d,lat,lon,tz){
   const sun = sunTimesUTCMinutes(y,m,d,lat,lon);
@@ -170,6 +185,14 @@ function computePanchanga(y,m,d,lat,lon,tz){
 
   const karanaIdx = Math.floor(diffAtSunrise/6);
   const karanaEndMs = findNextCrossing(sunriseMs, tithiDiffAt, 6, 2);
+
+  // Limbs that change before the next sunrise (each entry: {name, endMs})
+  const nextSunriseMs = sunriseMs + 86400000;
+  const nakSpan = 360/27;
+  const tithiThen = followOn(tithiEndMs, nextSunriseMs, tithiDiffAt, 12, v => tithiInfo(v).name);
+  const nakThen = followOn(nakEndMs, nextSunriseMs, moonSidAt, nakSpan, v => NAKSHATRAS[Math.floor(v/nakSpan)%27]);
+  const yogaThen = followOn(yogaEndMs, nextSunriseMs, yogaSumAt, nakSpan, v => YOGAS[Math.floor(v/nakSpan)%27]);
+  const karanaThen = followOn(karanaEndMs, nextSunriseMs, tithiDiffAt, 6, v => karanaName(Math.floor(v/6)%60));
 
   // Ayana
   const sunSidRise = sunSidAt(sunriseMs);
@@ -204,10 +227,10 @@ function computePanchanga(y,m,d,lat,lon,tz){
     paksha: tInfo.paksha,
     tithi: tInfo.name,
     tithiNum: tInfo.num,
-    tithiEndMs, tithiFracDone: null,
-    nakshatra: NAKSHATRAS[nakIdx], nakEndMs,
-    yoga: YOGAS[yogaIdx], yogaEndMs,
-    karana: karanaName(karanaIdx), karanaEndMs,
+    tithiEndMs, tithiFracDone: null, tithiThen,
+    nakshatra: NAKSHATRAS[nakIdx], nakEndMs, nakThen,
+    yoga: YOGAS[yogaIdx], yogaEndMs, yogaThen,
+    karana: karanaName(karanaIdx), karanaEndMs, karanaThen,
     sunriseMs, sunsetMs,
     diffAtSunrise
   };
@@ -257,7 +280,7 @@ const PanchangaAstro = {
   norm360, d2r, julianDay,
   sunLongAt, moonLongAt, ayanAt,
   tithiDiffAt, moonSidAt, sunSidAt, yogaSumAt,
-  findNextCrossing, findNextNewMoon,
+  findNextCrossing, findNextNewMoon, followOn,
   karanaName, tithiInfo,
   dayOfYear, sunTimesUTCMinutes, minutesToUTCms,
   todayCivilInTz, weekdayName, weekdayIndex,

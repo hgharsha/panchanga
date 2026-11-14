@@ -53,6 +53,9 @@ or silently drifts out of sync.
 - Tithi/nakshatra/yoga/karana derived from sun/moon longitude differences,
   evaluated **at sunrise** (traditional convention), with exact transition
   ("end") times found via bisection search.
+- Limbs that change before the next sunrise: `followOn()` chains `findNextCrossing` from each end time
+  until the next sunrise, exposed as `tithiThen`/`nakThen`/`yogaThen`/`karanaThen` (`[{name, endMs}]`).
+  `limbValue()` in `index.html` renders them (current limb bold on today's date, finished ones dimmed).
 - Masa (lunar month) determined by the sun's sidereal rashi **at the next new
   moon** (not the preceding one — this was a real bug that got fixed).
   Getting this backwards silently produces the wrong masa near solar-transit

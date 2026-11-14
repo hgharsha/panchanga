@@ -144,6 +144,10 @@ body{
 .row .value .end{
   display:block; font-family:'Space Mono',monospace; font-weight:400; font-size:11.5px; color:var(--accent-glow); margin-top:2px;
 }
+.row .value .seg{ font-weight:700; }
+.row .value .seg + .seg{ margin-top:4px; }
+.row .value .seg .end{ display:inline; margin:0 0 0 8px; }
+.row .value .seg.done{ opacity:.5; font-weight:400; }
 .sun-row{
   display:flex; gap:0;
 }
@@ -397,6 +401,28 @@ function fmtLocalDate(y,m,d){
 // ---------- Render ----------
 function pillow(ms,tz){ return ms ? fmtLocalTime(ms,tz) : "—"; }
 
+// End time with a "+" when it falls on a later local day than the one being shown.
+function endLabel(ms, tz, date){
+  if(!ms) return "—";
+  const dp = new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ms));
+  const same = dp === `${date.y}-${String(date.m).padStart(2,'0')}-${String(date.d).padStart(2,'0')}`;
+  return fmtLocalTime(ms,tz) + (same ? '' : '+');
+}
+
+// One limb row value: "Panchami 11:00 / Shashthi 09:12+". When viewing today, the limb in
+// effect now is bold and finished ones are dimmed; otherwise every limb looks the same.
+function limbValue(name, endMs, then, tz, date){
+  const t = todayCivilInTz(tz);
+  const isToday = t.y===date.y && t.m===date.m && t.d===date.d;
+  const now = Date.now();
+  const segs = [{name, endMs}].concat(then || []);
+  const cur = isToday ? segs.findIndex(s => s.endMs && now < s.endMs) : -1;
+  return segs.map((s,i) => {
+    const cls = isToday ? (i === cur ? ' cur' : (i < cur || cur === -1 ? ' done' : '')) : '';
+    return `<div class="seg${cls}">${s.name}<span class="end">${endLabel(s.endMs,tz,date)}</span></div>`;
+  }).join('');
+}
+
 function computeTithiProgress(diffAtSunrise){
   const within = diffAtSunrise % 12;
   return within/12; // 0..1 elapsed within current tithi as of sunrise (approx for ring start)
@@ -510,10 +536,10 @@ function render(){
     <div class="section">
       <div class="section-title">Five Limbs (Panchanga)</div>
       <div class="card">
-        <div class="row"><div class="label">Tithi</div><div class="value">${p.tithi}<span class="end">${pillow(p.tithiEndMs,loc.tz)}</span></div></div>
-        <div class="row"><div class="label">Nakshatra</div><div class="value">${p.nakshatra}<span class="end">${pillow(p.nakEndMs,loc.tz)}</span></div></div>
-        <div class="row"><div class="label">Yoga</div><div class="value">${p.yoga}<span class="end">${pillow(p.yogaEndMs,loc.tz)}</span></div></div>
-        <div class="row"><div class="label">Karana</div><div class="value">${p.karana}<span class="end">${pillow(p.karanaEndMs,loc.tz)}</span></div></div>
+        <div class="row"><div class="label">Tithi</div><div class="value">${limbValue(p.tithi,p.tithiEndMs,p.tithiThen,loc.tz,date)}</div></div>
+        <div class="row"><div class="label">Nakshatra</div><div class="value">${limbValue(p.nakshatra,p.nakEndMs,p.nakThen,loc.tz,date)}</div></div>
+        <div class="row"><div class="label">Yoga</div><div class="value">${limbValue(p.yoga,p.yogaEndMs,p.yogaThen,loc.tz,date)}</div></div>
+        <div class="row"><div class="label">Karana</div><div class="value">${limbValue(p.karana,p.karanaEndMs,p.karanaThen,loc.tz,date)}</div></div>
       </div>
     </div>
 
@@ -543,7 +569,7 @@ function render(){
       Panchanga computed locally (Lahiri ayanamsa, standard solar/lunar series) for ${loc.name}.
       Times shown in ${loc.tz}. Cross-check with a trusted source for religious observances.
       <br><button id="refreshBtn">Refresh now</button>
-      <br><span style="opacity:.5">v3</span>
+      <br><span style="opacity:.5">v4</span>
     </div>
   `;
 
