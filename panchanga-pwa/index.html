@@ -401,12 +401,14 @@ function fmtLocalDate(y,m,d){
 // ---------- Render ----------
 function pillow(ms,tz){ return ms ? fmtLocalTime(ms,tz) : "—"; }
 
-// End time with a "+" when it falls on a later local day than the one being shown.
+// End time, followed by the date ("Dec 22") when it falls on a later local day than the one shown.
 function endLabel(ms, tz, date){
   if(!ms) return "—";
   const dp = new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ms));
   const same = dp === `${date.y}-${String(date.m).padStart(2,'0')}-${String(date.d).padStart(2,'0')}`;
-  return fmtLocalTime(ms,tz) + (same ? '' : '+');
+  if(same) return fmtLocalTime(ms,tz);
+  const when = new Intl.DateTimeFormat('en-US',{timeZone:tz,month:'short',day:'numeric'}).format(new Date(ms));
+  return fmtLocalTime(ms,tz) + ' \u00b7 ' + when;
 }
 
 // One limb row value: "Panchami 11:00 / Shashthi 09:12+". When viewing today, the limb in
@@ -515,7 +517,7 @@ function render(){
         <div class="ring-center">
           <div class="paksha">${p.paksha}</div>
           <div class="tithi">${p.tithi}</div>
-          <div class="until">till ${pillow(p.tithiEndMs,loc.tz)}</div>
+          <div class="until">till ${endLabel(p.tithiEndMs,loc.tz,date)}</div>
           ${ekadashiCounterText ? `<div class="ekadashi-countdown">${ekadashiCounterText}</div>` : ''}
         </div>
       </div>
@@ -569,7 +571,7 @@ function render(){
       Panchanga computed locally (Lahiri ayanamsa, standard solar/lunar series) for ${loc.name}.
       Times shown in ${loc.tz}. Cross-check with a trusted source for religious observances.
       <br><button id="refreshBtn">Refresh now</button>
-      <br><span style="opacity:.5">v4</span>
+      <br><span style="opacity:.5">v5</span>
     </div>
   `;
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'panchanga-v4';
+const CACHE_NAME = 'panchanga-v5';
 const ASSETS = ['./index.html', './astro.js', './idb.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 importScripts('astro.js', 'idb.js');
